@@ -7,7 +7,7 @@ update-disk: disk.img
 	sudo mount -o loop disk.img mnt
 	sudo mkdir -p mnt/EFI/BOOT
 	sudo cp ${TARGET} mnt/EFI/BOOT/BOOTX64.EFI
-	sudo cp kernel.elf mnt/kernel.elf
+	sudo cp kernel/kernel.elf mnt/kernel.elf
 
 .PHONY: clean
 clean:
@@ -22,10 +22,10 @@ qemu-up:
 		-hda disk.img \
 		-monitor stdio
 
-kernel.elf: main.o
+kernel/kernel.elf: kernel/main.o
 	ld.lld --entry KernelMain -z norelro --image-base 0x100000 --static \
-		-o kernel.elf main.o
+		-o kernel/kernel.elf kernel/main.o
 
-main.o:
+kernel/main.o:
 	clang++ -O2 -Wall -g --target=x86_64-elf -ffreestanding -mno-red-zone \
-		-fno-exceptions -fno-rtti -std=c++17 -c main.cpp
+		-fno-exceptions -fno-rtti -std=c++17 -o kernel/main.o -c kernel/main.cpp
