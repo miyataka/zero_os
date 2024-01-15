@@ -12,7 +12,8 @@ update-disk: disk.img
 .PHONY: clean
 clean:
 	sudo umount mnt
-	rm disk.img
+	rm -f disk.img
+	rm -f kernel/*.o
 
 .PHONY: qemu-up
 qemu-up:
@@ -23,9 +24,14 @@ qemu-up:
 		-monitor stdio
 
 kernel/kernel.elf: kernel/main.o
-	ld.lld --entry KernelMain -z norelro --image-base 0x100000 --static \
+	ld.lld ${LDFLAGS} --entry KernelMain -z norelro --image-base 0x100000 --static \
+		-T kernel/linker.ld \
 		-o kernel/kernel.elf kernel/main.o
+	# ld.lld --entry KernelMain -z norelro --image-base 0x100000 --static \
+	# 	-o kernel/kernel.elf kernel/main.o
 
 kernel/main.o:
-	clang++ -O2 -Wall -g --target=x86_64-elf -ffreestanding -mno-red-zone \
+	clang++ ${CPPFLAGS} -O2 -Wall -g --target=x86_64-elf -ffreestanding -mno-red-zone \
 		-fno-exceptions -fno-rtti -std=c++17 -o kernel/main.o -c kernel/main.cpp
+	#clang++ ${CPPFLAGS} -O2 -Wall -g --target=x86_64-elf -ffreestanding -mno-red-zone \
+	#	-fno-exceptions -fno-rtti -std=c++17 -o kernel/main.o -c kernel/main.cpp

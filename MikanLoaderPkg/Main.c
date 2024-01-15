@@ -1,8 +1,8 @@
 #include <Guid/FileInfo.h>
-#include <Library/MemoryAllocationLib.h>
 #include <Library/PrintLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiLib.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Protocol/BlockIo.h>
 #include <Protocol/DiskIo2.h>
 #include <Protocol/LoadedImage.h>
@@ -117,12 +117,20 @@ EFI_STATUS OpenGOP(EFI_HANDLE image_handle,
                    EFI_GRAPHICS_OUTPUT_PROTOCOL** gop) {
   UINTN num_gop_handles = 0;
   EFI_HANDLE* gop_handles = NULL;
-  gBS->LocateHandleBuffer(ByProtocol, &gEfiGraphicsOutputProtocolGuid, NULL,
-                          &num_gop_handles, &gop_handles);
+  gBS->LocateHandleBuffer(
+      ByProtocol,
+      &gEfiGraphicsOutputProtocolGuid,
+      NULL,
+      &num_gop_handles,
+      &gop_handles);
 
-  gBS->OpenProtocol(gop_handles[0], &gEfiGraphicsOutputProtocolGuid,
-                    (VOID**)gop, image_handle, NULL,
-                    EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
+  gBS->OpenProtocol(
+      gop_handles[0],
+      &gEfiGraphicsOutputProtocolGuid,
+      (VOID**)gop,
+      image_handle,
+      NULL,
+      EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
 
   FreePool(gop_handles);
 
@@ -165,21 +173,20 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE image_handle,
   SaveMemoryMap(&memmap, memmap_file);
   memmap_file->Close(memmap_file);
 
-  // 画面を白塗りにする
   EFI_GRAPHICS_OUTPUT_PROTOCOL* gop;
   OpenGOP(image_handle, &gop);
   Print(L"Resolution: %ux%u, Pixel Format: %s, %u pixels/line\n",
-        gop->Mode->Info->HorizontalResolution,
-        gop->Mode->Info->VerticalResolution,
-        GetPixelFormatUnicode(gop->Mode->Info->PixelFormat),
-        gop->Mode->Info->PixelsPerScanLine);
+      gop->Mode->Info->HorizontalResolution,
+      gop->Mode->Info->VerticalResolution,
+      GetPixelFormatUnicode(gop->Mode->Info->PixelFormat),
+      gop->Mode->Info->PixelsPerScanLine);
   Print(L"Frame Buffer: 0x%0lx - 0x%0lx, Size: %lu bytes\n",
-        gop->Mode->FrameBufferBase,
-        gop->Mode->FrameBufferBase + gop->Mode->FrameBufferSize,
-        gop->Mode->FrameBufferSize);
+      gop->Mode->FrameBufferBase,
+      gop->Mode->FrameBufferBase + gop->Mode->FrameBufferSize,
+      gop->Mode->FrameBufferSize);
 
   UINT8* frame_buffer = (UINT8*)gop->Mode->FrameBufferBase;
-  for (UINTN i = 0; i < gop->Mode->FrameBufferSize; i++) {
+  for (UINTN i = 0; i < gop->Mode->FrameBufferSize; ++i) {
     frame_buffer[i] = 255;
   }
 
@@ -235,9 +242,9 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE image_handle,
   // cf. https://refspecs.linuxfoundation.org/elf/gabi4+/ch4.eheader.html
   UINT64 entry_addr = *(UINT64*)(kernel_base_addr + 24);
 
-  typedef void EntryPointType(void);  // voidを受取り、voidを返す型
+  typedef void EntryPointType(UINT64, UINT64);  // UINT64, UINT64を受取り、voidを返す型
   EntryPointType* entry_point = (EntryPointType*)entry_addr;
-  entry_point();
+  entry_point(gop->Mode->FrameBufferBase, gop->Mode->FrameBufferSize);
 
   Print(L"All done\n");
 
