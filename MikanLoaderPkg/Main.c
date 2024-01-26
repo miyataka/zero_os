@@ -154,6 +154,11 @@ const CHAR16* GetPixelFormatUnicode(EFI_GRAPHICS_PIXEL_FORMAT fmt) {
   }
 }
 
+void Halt(void) {
+    while(1) __asm__("hlt");
+}
+
+
 EFI_STATUS EFIAPI UefiMain(EFI_HANDLE image_handle,
                            EFI_SYSTEM_TABLE* system_table) {
   Print(L"Hello, Mikan World!\n");
@@ -206,7 +211,8 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE image_handle,
 
   // kernel_fileを読み込めるだけのメモリを確保する
   EFI_PHYSICAL_ADDRESS kernel_base_addr = 0x100000;
-  gBS->AllocatePages(
+  EFI_STATUS status;
+  status = gBS->AllocatePages(
       AllocateAddress,  // 指定したアドレスに確保するモード
       EfiLoaderData,    // 読み込むデータのタイプ
       (kernel_file_size + 0xfff) /
@@ -214,25 +220,27 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE image_handle,
                    // 端数が切り捨てられるのを予防するために0xfffを足しておく
       &kernel_base_addr);  // AllocateAddressモードだと書き換えられることはないが、ベースアドレスを受け取るポインタ変数
 
+  if (EFI_ERROR(status)) {
+      Print(L"failed to allocate pages: %r", status);
+      Halt(); // 異常なので止める
+  }
+
   kernel_file->Read(kernel_file, &kernel_file_size, (VOID*)kernel_base_addr);
   Print(L"Kernel: 0x%0lx (%lu bytes)\n", kernel_base_addr, kernel_file_size);
 
   // stop boot service before kernel start
-  EFI_STATUS status;
   status = gBS->ExitBootServices(image_handle, memmap.map_key);
   if (EFI_ERROR(
           status)) {  // memmapを取得してから、ブートサービスの機能を利用しているのでmap_keyが更新されており、基本的に最初の実行は失敗する
     status = GetMemoryMap(&memmap);
     if (EFI_ERROR(status)) {
       Print(L"failed to get memory map: %r\n", status);
-      while (1)
-        ;  // 異常なので止める
+      Halt(); // 異常なので止める
     }
     status = gBS->ExitBootServices(image_handle, memmap.map_key);
     if (EFI_ERROR(status)) {
       Print(L"Could not exit boot service: %r\n", status);
-      while (1)
-        ;  // 異常なので止める
+      Halt(); // 異常なので止める
     }
   }
 
@@ -248,7 +256,7 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE image_handle,
 
   Print(L"All done\n");
 
-  while (1)
-    ;
+  Halt();
+
   return EFI_SUCCESS;
 }
